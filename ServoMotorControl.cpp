@@ -118,7 +118,6 @@ void runMotorTest(int cmd)
   else
   {
     // unknown value passed to cmd
-    if (DEBUG)
     Serial.println("(else) Stopping motor test");
     servoMotorEnable(MOTOR_DISABLED);
     Serial.print("_motor_enable Status: "); Serial.println(_motor_enable);
@@ -129,10 +128,6 @@ void servoMotorOneRevolution()
 {
     // Test to determine Quadrature values before and after a single 360
     // degree revolution
-    // 0.00571429 == 200 pulses per second = 1 revolution per second
-    //servoMotorFrequency(0.01);   
-    // 50Hz = 10ms on 10ms off || 100Hz = 5ms on 5ms off
-
     NewTone(mtrPulsePin, 800); //800Hz, 800 pulses in 1 sec
 
     long quad_start = 0;
@@ -271,18 +266,18 @@ long servoMotorReadQuadratureCount()
 {
     _quad_count = QuadCounter.read_counter();
     
-    /*
-    // debug print:
-    byte* b = (byte*)(&_quad_count);
-    Serial.print("readQuad:"); 
-    Serial.print(_quad_count); 
-    Serial.print(" ");
-    print_binary(*(b + 2));
-    Serial.print(" ");
-    print_binary(*(b + 3));
-    Serial.print(" ");
-    Serial.println();
-    */
+    if (DEBUG)
+    {
+        byte* b = (byte*)(&_quad_count);
+        Serial.print("readQuad:"); 
+        Serial.print(_quad_count); 
+        Serial.print(" ");
+        print_binary(*(b + 2));
+        Serial.print(" ");
+        print_binary(*(b + 3));
+        Serial.print(" ");
+        Serial.println();
+    }
     
     return _quad_count;
 }

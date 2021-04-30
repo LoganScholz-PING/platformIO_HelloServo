@@ -57,7 +57,6 @@ int STOP_MOTOR_TEST = 0;
 unsigned long angle_timer = 0;
 double angle;
 long quad;
-boolean quad_read = false;
 
 double start_counts = 0;
 double total_counts = 0;
@@ -123,7 +122,6 @@ void checkSerial()
       case '2':
         // disables the motor
         runMotorTest(STOP_MOTOR_TEST); 
-        quad_read = false;
         break;
       case '3':
         // change motor direction spin to counter-clockwise
@@ -166,8 +164,8 @@ void checkSerial()
         // convert a char* array into an integer
         // (it even understands negatives!)
         int deg = atoi(&serialData[1]); 
-        total_counts = servoMotorMoveDegrees(deg);
         start_counts = (double)servoMotorReadQuadratureCount();
+        total_counts = servoMotorMoveDegrees(deg);
         motor_moving = true; // maybe move this to the servoMotorMoveDegrees() function
         break;
         }
@@ -205,7 +203,8 @@ void checkSerial()
 void checkOpticalStop()
 {
   // pinOPTICALSTOP is HIGH if beam is broken
-  optical_stop_chk = digitalRead(pinOPTICALSTOP);
+  //optical_stop_chk = digitalRead(pinOPTICALSTOP); // slow
+  optical_stop_chk = (_SFR_IO8(0X03) & B10000000); // more performant
 
   // if statement checks for rising edge condition
   // on optical_stop_chk (with a 10ms debounce)
@@ -234,11 +233,11 @@ void checkOpticalStop()
   // turn off the motor
   if (_motor_enable && optical_stop_hit)
   {
+    servoMotorEnable(MOTOR_DISABLED);
     if (DEBUG)
     {
       Serial.println("*STOP MOTOR DUE TO OPTICAL STOP*");
     }
-    servoMotorEnable(MOTOR_DISABLED);
   } 
 
   prev_opt_reading = optical_stop_chk;
