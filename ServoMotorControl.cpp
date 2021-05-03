@@ -266,6 +266,7 @@ long servoMotorReadQuadratureCount()
 {
     _quad_count = QuadCounter.read_counter();
     
+    /* the output from the if statement below can get obnoxious
     if (DEBUG)
     {
         byte* b = (byte*)(&_quad_count);
@@ -278,6 +279,7 @@ long servoMotorReadQuadratureCount()
         Serial.print(" ");
         Serial.println();
     }
+    */
     
     return _quad_count;
 }

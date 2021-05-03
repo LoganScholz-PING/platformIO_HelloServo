@@ -33,6 +33,8 @@
 #include <Servo.h>
 #include "ServoMotorControl.h"
 #include "LoadCell.h"
+#include "Heartbeat.h"
+#include "EEPROM_Arduino.h"
 
 /* === START PROGRAM SPECIFIC DEFINES === */
 #define SOP '<' // denotes start of serial data packet
@@ -66,6 +68,10 @@ boolean optical_stop_chk = false; // samples the digital state of the optical st
 boolean optical_stop_hit = false; // true for 10ms when rising edge detected
 boolean prev_opt_reading = false; // state control variable for determining rising edge
 long opt_debounce_time = 0;       // 10ms debounce timer that starts upon detection of rising edge
+
+// TimeSlice StatusSlice(2000); // !!! *NOT READY YET* !!!
+long _heartbeat_interval = 4000;
+long _load_update_interval = 50;
 /* === END PROGRAM FLOW CONTROL VARIABLES === */
 
 /* === START ServoMotorControl.cpp EXTERNS === */
@@ -181,6 +187,18 @@ void checkSerial()
         // Read Load Cell
         loadcellReadCurrentValue();
         break;
+      case 'b':
+        // read first 80 bytes of EEPROM to serial
+        REPORT_EEPROM_CONTENTS();
+        break;
+      case 'c':
+        // zero out the contents of the first 80 bytes of EEPROM
+        ZERO_EEPROM_CONTENTS();
+        break;
+      case 'd':
+        // read only contents of EEPROM we care about
+        ReadEEPROM(true);
+        break;
       default:
         // we received a packet where serialData[0] 
         // is unrecognized
@@ -268,7 +286,12 @@ void setup()
   Serial.begin(9600);
   delay(250); // let serial settle itself
   servoMotorSetup();
+  // need to do setupEEPROM() before loadcellSetup()
+  // because loadcellSetup() retrieves data from EEPROM
+  // like scale_zero_bias and scale_calibration_factor
+  setupEEPROM(); 
   loadcellSetup();
+  
 
   pinMode(pinOPTICALSTOP, INPUT);
   pinMode(DEBUG_PIN, INPUT_PULLUP);
