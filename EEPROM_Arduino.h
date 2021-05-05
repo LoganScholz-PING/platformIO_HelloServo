@@ -24,7 +24,7 @@ void AccessFloatEEPROM(boolean doread, float* f, int block);
 void AccessIntegerEEPROM(boolean doread, int* f, int block);
 void AccessLongEEPROM(boolean doread, long* f, int block);
 void WriteEEPROM(boolean forcewrite);
-void ReadEEPROM(bool output);
+void ReadEEPROM(boolean output);
 void SENDUI_EEPROM(char* status);
 void REPORT_EEPROM_CONTENTS();
 void ZERO_EEPROM_CONTENTS();

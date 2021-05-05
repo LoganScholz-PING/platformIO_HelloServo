@@ -48,30 +48,29 @@ boolean DEBUG = false;
 
 /* === START PROGRAM FLOW CONTROL VARIABLES === */
 char ctrlChar;
-char serialData[10]; // serial receive buffer
-byte index;
-boolean started = false;
-boolean ended = false;
+char serialData[10];     // serial receive buffer
+byte index;              // serialData indexer
+boolean started = false; // serial data flow control
+boolean ended = false;   // serial data flow control
 
-int START_MOTOR_TEST = 1;
+int START_MOTOR_TEST = 1; 
 int STOP_MOTOR_TEST = 0;
 
-unsigned long angle_timer = 0;
-double angle;
 long quad;
 
-double start_counts = 0;
-double total_counts = 0;
-boolean motor_moving = false;
+double start_counts = 0;      // for tracking motor movement
+double total_counts = 0;      // for tracking motor movement
+boolean motor_moving = false; // for tracking if motor is moving
 
 boolean optical_stop_chk = false; // samples the digital state of the optical stop
 boolean optical_stop_hit = false; // true for 10ms when rising edge detected
 boolean prev_opt_reading = false; // state control variable for determining rising edge
 long opt_debounce_time = 0;       // 10ms debounce timer that starts upon detection of rising edge
 
-// TimeSlice StatusSlice(2000); // !!! *NOT READY YET* !!!
-long _heartbeat_interval = 4000;
-long _load_update_interval = 50;
+TimeSlice StatusSlice(2000);      // heartbeat object
+long _heartbeat_interval = 4000;  // 4 second heartbeat
+long _load_update_interval = 50;  // read torque load every 50ms
+unsigned long hb_timer = 0;
 /* === END PROGRAM FLOW CONTROL VARIABLES === */
 
 /* === START ServoMotorControl.cpp EXTERNS === */
@@ -126,7 +125,7 @@ void checkSerial()
         runMotorTest(START_MOTOR_TEST);
         break;
       case '2':
-        // disables the motor
+        // disables the motor and stops PWM
         runMotorTest(STOP_MOTOR_TEST); 
         break;
       case '3':
@@ -280,21 +279,38 @@ void ifMovingCheckCountFeedback()
   }
 } // end void ifMovingCheckCountFeedback()
 
+void updateEnvironment()
+{
+  //char* cp; // for tracking state machine current state, not implemented
+  //double pos = servoMotorReadRotationAngle(); // doesn't work yet
+  float tq = loadcellReadCurrentValue();
+
+
+  Serial.print("{,");
+  Serial.print(":T="); Serial.print(tq);
+  //Serial.print(":A="); Serial.print(pos);
+  Serial.print(":MTR="); Serial.print(motor_moving);
+  Serial.println(",}");
+}
 
 void setup() 
 {
   Serial.begin(9600);
   delay(250); // let serial settle itself
+  
   servoMotorSetup();
+
   // need to do setupEEPROM() before loadcellSetup()
   // because loadcellSetup() retrieves data from EEPROM
   // like scale_zero_bias and scale_calibration_factor
   setupEEPROM(); 
   loadcellSetup();
-  
 
   pinMode(pinOPTICALSTOP, INPUT);
   pinMode(DEBUG_PIN, INPUT_PULLUP);
+
+  // initialize heartbeat to 4 seconds
+  StatusSlice.Interval(_heartbeat_interval);
 } // end void setup()
 
 
@@ -311,11 +327,16 @@ void loop()
   DEBUG = !(_SFR_MEM8(0x109) & B10000000);
 
   checkSerial();
-
   checkOpticalStop();
 
   if (motor_moving)
   {
     ifMovingCheckCountFeedback(); 
-  }   
+  }
+
+  hb_timer = millis();
+  if (StatusSlice.Triggered(hb_timer))
+  {
+    updateEnvironment(); // output heartbeat to serial
+  }
 } // end void loop()

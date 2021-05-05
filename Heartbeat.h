@@ -1,8 +1,6 @@
 #ifndef HEARTBEAT_H
 #define HEARTBEAT_H
 
-#include <Arduino.h>
-
 class TimeSlice
 {
     private:
@@ -12,17 +10,15 @@ class TimeSlice
         TimeSlice(long t)
         {
             _interval = t;
-        }
-        
+        }        
         void Interval(long ct)
         {
             _interval = ct;
             _previous_time = 0;
         }
-
-        boolean Triggered(long ct)
+        bool Triggered(long ct)
         {
-            boolean ret = false;
+            bool ret = false;
             long delta = ct - _previous_time;
             if ( delta < 0 )
             {

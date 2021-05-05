@@ -8,7 +8,7 @@ long _delta_eeprom_write_millis = 1200000;
 boolean _eeprom_dirty = false;
 
 /******* START EXTERNS FROM main.cpp ******/
-extern long _heartbeat_interval;
+//extern long _heartbeat_interval;
 extern long _load_update_interval;
 /******** END EXTERNS FROM main.cpp *******/
 
@@ -106,7 +106,7 @@ void WriteEEPROM(boolean forcewrite)
         AccessFloatEEPROM(WRITE_EEPROM, &scale_force_maximum,      EP_ADDR_SCALE_FORCE_MAXIMUM_F);
         AccessFloatEEPROM(WRITE_EEPROM, &scale_force_tolerance,    EP_ADDR_SCALE_FORCE_TOLERANCE_F);
         AccessFloatEEPROM(WRITE_EEPROM, &scale_calibration_load,   EP_ADDR_SCALE_CALIBRATION_LOAD_F);
-        AccessLongEEPROM( WRITE_EEPROM, &_heartbeat_interval,      EP_ADDR_HEARTBEAT_INTERVAL_L);
+        //AccessLongEEPROM( WRITE_EEPROM, &_heartbeat_interval,      EP_ADDR_HEARTBEAT_INTERVAL_L);
         AccessLongEEPROM( WRITE_EEPROM, &_load_update_interval,    EP_ADDR_LOAD_UPDATE_INTERVAL_L);
     
         _eeprom_dirty = false;
@@ -117,7 +117,7 @@ void WriteEEPROM(boolean forcewrite)
 
 }
 
-void ReadEEPROM(bool output)
+void ReadEEPROM(boolean output)
 {
     /* read the following memory locations from EEPROM:
      *
@@ -127,7 +127,7 @@ void ReadEEPROM(bool output)
      * (float) scale_force_maximum      @ ADDR=36
      * (float) scale_force_tolerance    @ ADDR=40
      * (float) scale_calibration_load   @ ADDR=50
-     * (long) _heartbeat_interval       @ ADDR=54
+     * (long) _heartbeat_interval       @ ADDR=54 // set as a global in main.cpp
      * (long) _load_update_interval     @ ADDR=58
      * 
      */
@@ -137,7 +137,7 @@ void ReadEEPROM(bool output)
     AccessFloatEEPROM(READ_EEPROM, &scale_force_maximum,      EP_ADDR_SCALE_FORCE_MAXIMUM_F);
     AccessFloatEEPROM(READ_EEPROM, &scale_force_tolerance,    EP_ADDR_SCALE_FORCE_TOLERANCE_F);
     AccessFloatEEPROM(READ_EEPROM, &scale_calibration_load,   EP_ADDR_SCALE_CALIBRATION_LOAD_F);
-    AccessLongEEPROM( READ_EEPROM, &_heartbeat_interval,      EP_ADDR_HEARTBEAT_INTERVAL_L);
+    //AccessLongEEPROM( READ_EEPROM, &_heartbeat_interval,      EP_ADDR_HEARTBEAT_INTERVAL_L);
     AccessLongEEPROM( READ_EEPROM, &_load_update_interval,    EP_ADDR_LOAD_UPDATE_INTERVAL_L);
 
     _eeprom_dirty = false;
@@ -151,17 +151,17 @@ void ReadEEPROM(bool output)
 
 void SENDUI_EEPROM(char* status)
 {
-    Serial.print("[,");
+    Serial.print("{,");
     Serial.print(status);
     Serial.print(":ZB=");
     Serial.print(scale_zero_bias);
     Serial.print(":CF=");
     Serial.print(scale_calibration_factor);
-    Serial.print(":HB=");
-    Serial.print(_heartbeat_interval);
+    //Serial.print(":HB=");
+    //Serial.print(_heartbeat_interval);
     Serial.print(":UI=");
     Serial.print(_load_update_interval);
-    Serial.println(",]"); 
+    Serial.println(",}"); 
 }
 
 void REPORT_EEPROM_CONTENTS()
