@@ -8,13 +8,13 @@
 #define MOTOR_CW HIGH
 #define MOTOR_ENABLED LOW
 #define MOTOR_DISABLED HIGH
-#define mtrDirectionPin 8
-#define mtrPulsePin 9
-#define mtrEnablePin 10
+#define mtrDirectionPin 8 // PH5
+#define mtrPulsePin 9     // PH6
+#define mtrEnablePin 10   // PB4
 /* === END SERVO MOTOR DEFINES === */
 
 /* === START QUADRATURE DEFINES === */
-#define QUAD_CHIPSELECT 53
+#define QUAD_CHIPSELECT 53 // PB0
 /* === END QUADRATURE DEFINES === */
 
 
@@ -26,8 +26,12 @@ void servoMotorEnable(byte v);
 void servoMotorDirection(boolean v);
 void servoMotorAdjustSpeed(unsigned long nw);
 void servoMotorFrequency(float f);
+void servoMotorSTOP();
+int servoMotorMoveDegrees(int deg);
 
 void runMotorTest(int cmd);
+void servoMotorOneRevolution();
+void servoMotor800Pulses();
 /* === END SERVO MOTOR FUNCTION PROTOTYPES === */
 
 /* === START QUADRATURE FUNCTION PROTOTYPES === */
