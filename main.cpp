@@ -35,14 +35,18 @@
 #include "LoadCell.h"
 #include "Heartbeat.h"
 #include "EEPROM_Arduino.h"
+#include "AirPressure.h"
 
 /* === START PROGRAM SPECIFIC DEFINES === */
 #define SOP '<' // denotes start of serial data packet
 #define EOP '>' // denotes end of serial data packet
 
-#define pinOPTICALSTOP 13 // PB7
-#define DEBUG_PIN 42      // PL7
+// mega interrupts INT0,INT1,INT2,INT3,INT4,INT5
+// mega interrupt pins: 2, 3, 2, 20, 19, 18
+#define pinOPTICALHOME 20        // PB7
+//#define pinOPTICALEMERGENCY 20 // not hooked up yet
 
+#define DEBUG_PIN 42             // PL7
 boolean DEBUG = false;
 /* === END PROGRAM SPECIFIC DEFINES === */
 
@@ -63,7 +67,8 @@ double total_counts = 0;      // for tracking motor movement
 boolean motor_moving = false; // for tracking if motor is moving
 
 boolean optical_stop_chk = false; // samples the digital state of the optical stop
-boolean optical_stop_hit = false; // true for 10ms when rising edge detected
+volatile boolean opticalHOME_stop_hit = false; // true for 10ms when rising edge detected
+volatile boolean opticalEMERGENCY_stop_hit = false;
 boolean prev_opt_reading = false; // state control variable for determining rising edge
 long opt_debounce_time = 0;       // 10ms debounce timer that starts upon detection of rising edge
 
@@ -151,11 +156,8 @@ void checkSerial()
         servoMotorOneRevolution();
         break;
       case '6':
-        // unused
-        if (DEBUG)
-        {
-          Serial.println("Serial cmd 6 is unused!");
-        }
+        // Actuate air pressure solenoid for clamps
+        actuateSolenoid();
         break;
       case '7':
         // the function below is blocking
@@ -198,6 +200,10 @@ void checkSerial()
         // read only contents of EEPROM we care about
         ReadEEPROM(true);
         break;
+      case 'e':
+        // read and output air pressure
+        readAirPressure();
+        break;
       default:
         // we received a packet where serialData[0] 
         // is unrecognized
@@ -216,53 +222,24 @@ void checkSerial()
 } // end void checkSerial()
 
 
-// TODO?: THIS SHOULD BE HOOKED TO AN INTERRUPT?
-void checkOpticalStop()
+void homeOpticalStopInt() // interrupt service routine
 {
-  // pinOPTICALSTOP is HIGH if beam is broken
-  //optical_stop_chk = digitalRead(pinOPTICALSTOP); // slow
-  optical_stop_chk = (_SFR_IO8(0X03) & B10000000); // more performant
+  opticalHOME_stop_hit = true;
+  servoMotorEnable(MOTOR_DISABLED);
+} // end void homeOpticalStopInt()
 
-  // if statement checks for rising edge condition
-  // on optical_stop_chk (with a 10ms debounce)
-  if ((optical_stop_chk) && 
-      (prev_opt_reading != optical_stop_chk) && 
-      (millis() - opt_debounce_time >= 10))
-  {
-    optical_stop_hit = true;
-    if (DEBUG)
-    {
-      Serial.println("*OPTICAL STOP HIT*");
-    }
-    opt_debounce_time = millis();
-  }
-
-  // reset the boolean that tracks optical beam state after
-  // 10ms (when optical endstop beam is broken this discrete
-  // will stay true for 10ms)
-  if (optical_stop_hit && (millis() - opt_debounce_time >= 10))
-  {
-    optical_stop_hit = false;
-    //Serial.println("*OPTICAL STOP BOOLEAN RESET*");
-  }
-
-  // if motor is enabled and the optical stop is hit
-  // turn off the motor
-  if (_motor_enable && optical_stop_hit)
-  {
-    servoMotorEnable(MOTOR_DISABLED);
-    if (DEBUG)
-    {
-      Serial.println("*STOP MOTOR DUE TO OPTICAL STOP*");
-    }
-  } 
-
-  prev_opt_reading = optical_stop_chk;
-} // void checkOpticalStop()
+void emergencyOpticalStopInt() // interrupt service routine
+{
+  opticalEMERGENCY_stop_hit = true;
+} // end void emergencyOpticalStopInt()
 
 
 void ifMovingCheckCountFeedback()
 {
+  if (DEBUG)
+  {
+    Serial.println("INSIDE ifMovingCheckCountFeedback()");
+  }
   quad = servoMotorReadQuadratureCount();
   if ( (abs(quad-start_counts) >= abs(total_counts)) )
   {   
@@ -298,17 +275,28 @@ void setup()
   Serial.begin(9600);
   delay(250); // let serial settle itself
   
-  servoMotorSetup();
+  pinMode(pinOPTICALHOME, INPUT);
+  attachInterrupt(digitalPinToInterrupt(pinOPTICALHOME), 
+                  homeOpticalStopInt, 
+                  RISING);
 
+  /* EMERGENCY stop not implemented yet
+  pinMode(pinOPTICALEMERGENCY, INPUT); // not hooked up yet
+  attachInterrupt(digitalPinToInterrupt(pinOPTICALEMERGENCY), 
+                  emergencyOpticalStopInt, 
+                  RISING);
+  */
+  
+  pinMode(DEBUG_PIN, INPUT_PULLUP);
+
+  servoMotorSetup();
+  setupAirValve();
   // need to do setupEEPROM() before loadcellSetup()
   // because loadcellSetup() retrieves data from EEPROM
   // like scale_zero_bias and scale_calibration_factor
   setupEEPROM(); 
   loadcellSetup();
-
-  pinMode(pinOPTICALSTOP, INPUT);
-  pinMode(DEBUG_PIN, INPUT_PULLUP);
-
+  
   // initialize heartbeat to 4 seconds
   StatusSlice.Interval(_heartbeat_interval);
 } // end void setup()
@@ -325,18 +313,33 @@ void loop()
   // _SFR_MEM8(0x109) returns all 8 bits of register PORTL
   // (note 0x109 is Port L's "PINL" register memory address)
   DEBUG = !(_SFR_MEM8(0x109) & B10000000);
-
+  
   checkSerial();
-  checkOpticalStop();
 
   if (motor_moving)
   {
     ifMovingCheckCountFeedback(); 
   }
 
+  if ( opticalHOME_stop_hit )
+  {
+    servoMotorEnable(MOTOR_DISABLED);
+    Serial.println("*OPTICAL HOME STOP HIT*");
+    opticalHOME_stop_hit = false;
+  }
+
+  if ( opticalEMERGENCY_stop_hit )
+  {
+    servoMotorEnable(MOTOR_DISABLED);
+    Serial.println("*OPTICAL EMERGENCY STOP HIT*");
+    opticalEMERGENCY_stop_hit = false;
+  }
+
+/*
   hb_timer = millis();
   if (StatusSlice.Triggered(hb_timer))
   {
     updateEnvironment(); // output heartbeat to serial
   }
+*/
 } // end void loop()

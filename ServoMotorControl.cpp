@@ -156,18 +156,35 @@ void servoMotor800Pulses()
     long quad_temp_start = servoMotorReadQuadratureCount();
     Serial.print("Quad Count Start: "); Serial.println(quad_temp_start);
     digitalWrite(mtrPulsePin, LOW);
-    for (int i = 0; i < 800; ++i)
+    for (int i = 0; i < 1600; ++i)
     {
+        // let the user break out of the pulse loop just in case
+        if ( Serial.available() )
+        {
+            char in = Serial.read();
+
+            if ( in == 'x' )
+            {
+                break;
+            }
+        }
+        else if ( !_motor_enable )
+        {
+            break;
+        }
         Serial.print("Pulse "); Serial.println(i + 1);
         // 10ms pulse period, 50% duty cycle
         digitalWrite(mtrPulsePin, HIGH);
-        delay(5);
+        delayMicroseconds(500);
+        //delay(1);
         digitalWrite(mtrPulsePin, LOW);
-        delay(5);
+        delayMicroseconds(500);
+        //delay(1);
     }
     long quad_temp_end = servoMotorReadQuadratureCount();
     Serial.print("Quad Count End: "); Serial.println(quad_temp_end);
     Serial.print("Total Counts: "); Serial.println(quad_temp_end - quad_temp_start);
+    servoMotorEnable(MOTOR_DISABLED);
 }
 
 int servoMotorMoveDegrees(int deg)
